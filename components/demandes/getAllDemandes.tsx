@@ -106,79 +106,25 @@ export default function DemandeList() {
   };
 
   // 🔹 Construire workflow pour utilisateur
-  const getWorkflowForUser = (demande: DemandeFront, user: User | null) => {
-  if (!user) return [];
+  const getWorkflowForUser = (demande: DemandeFront) => {
+    const decisions = demande.decisions ?? [];
 
-  const roles = extractRoles(user);
-  const decisions = demande.decisions ?? [];
+    const getStatus = (niveau: string) => {
+      const related = decisions.filter(d => d.niveau === niveau);
 
-  const result: { niveau: string; status: string }[] = [];
+      if (related.some(d => d.status === "REFUSE")) return "REFUSE";
+      if (related.length > 0 && related.every(d => d.status === "APPROUVE")) return "APPROUVE";
 
-  // 🔹 Chef → ne voit que CHEF
-  if (demande.user?.chefId === user.id) {
-    const chefDecision = decisions.find(d => d.niveau === "CHEF");
-    result.push({
-      niveau: "CHEF",
-      status: chefDecision?.status ?? "EN_ATTENTE"
-    });
-    return result;
-  }
+      return "EN_ATTENTE";
+    };
 
-  // 🔹 DRH → voit CHEF + DRH
-  if (roles.includes("DRH")) {
-    const chefDecision = decisions.find(d => d.niveau === "CHEF");
-    const drhDecisions = decisions.filter(d => d.niveau === "DRH");
-    const drhStatus =
-      drhDecisions.some(d => d.status === "REFUSE") ? "REFUSE" :
-      drhDecisions.every(d => d.status === "APPROUVE") ? "APPROUVE" :
-      "EN_ATTENTE";
+    return [
+      { niveau: "CHEF", status: getStatus("CHEF") },
+      { niveau: "DRH", status: getStatus("DRH") },
+      { niveau: "DG", status: getStatus("DG") },
+    ];
+  };
 
-    if (chefDecision) {
-      result.push({
-        niveau: "CHEF",
-        status: chefDecision.status
-      });
-    }
-
-    result.push({
-      niveau: "DRH",
-      status: drhStatus
-    });
-
-    return result;
-  }
-
-  // 🔹 DG → voit CHEF + DRH + DG
-  if (roles.includes("DG")) {
-    const chefDecision = decisions.find(d => d.niveau === "CHEF");
-    const drhDecisions = decisions.filter(d => d.niveau === "DRH");
-    const dgDecisions = decisions.filter(d => d.niveau === "DG");
-
-    const drhStatus =
-      drhDecisions.some(d => d.status === "REFUSE") ? "REFUSE" :
-      drhDecisions.every(d => d.status === "APPROUVE") ? "APPROUVE" :
-      "EN_ATTENTE";
-
-    const dgStatus =
-      dgDecisions.some(d => d.status === "REFUSE") ? "REFUSE" :
-      dgDecisions.every(d => d.status === "APPROUVE") ? "APPROUVE" :
-      "EN_ATTENTE";
-
-    if (chefDecision) {
-      result.push({ niveau: "CHEF", status: chefDecision.status });
-    }
-
-    result.push({ niveau: "DRH", status: drhStatus });
-    result.push({ niveau: "DG", status: dgStatus });
-
-    return result;
-  }
-
-  // 🔹 Employé → voit le statut final seulement
-  result.push({ niveau: "DEMANDE", status: demande.status });
-
-  return result;
-};
 
 
   // 🔹 Chargement des demandes
@@ -441,8 +387,10 @@ export default function DemandeList() {
                   <TableCell>{d.dateDebut.split("T")[0]} → {d.dateFin.split("T")[0]}</TableCell>
                   <TableCell>{d.motif}</TableCell>
                   <TableCell>
-                    {getWorkflowForUser(d, currentUser).map((w, i) => (
-                      <Badge key={i} className={getStatusColor(w.status)}>{w.niveau}: {w.status}</Badge>
+                    {getWorkflowForUser(d).map((w, i) => (
+                      <Badge key={i} className={getStatusColor(w.status)}>
+                        {w.niveau}: {w.status}
+                      </Badge>
                     ))}
                   </TableCell>
                   <TableCell>{d.createdAt.split("T")[0]}</TableCell>

@@ -1,5 +1,6 @@
 "use client"
-
+import { useEffect, useState } from "react";
+import NotificationService from "@/lib/services/NotificationService";
 import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -19,6 +20,20 @@ export default function Header({ toggleSidebar }: { toggleSidebar?: () => void }
   const { user, logout } = useAuth()
   const { theme, setTheme } = useTheme()
 
+  const notificationService = new NotificationService();
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    notificationService
+      .getUnreadCount(user.id)   // <- ici on envoie userId
+      .then((res) => setUnreadCount(res.count))
+      .catch((err) => console.error("Erreur notifications:", err));
+  }, [user]);
+
+
+
   return (
     <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b">
       <div className="flex h-16 items-center gap-4 px-6 justify-between">
@@ -35,11 +50,20 @@ export default function Header({ toggleSidebar }: { toggleSidebar?: () => void }
         </div>
 
         <div className="flex items-center gap-4">
-          {/* Notifications */}
           <Button variant="ghost" size="sm" className="relative">
             <Bell className="w-5 h-5" />
-            <span className="absolute -top-1 -right-1 w-2 h-2 bg-destructive rounded-full pointer-events-none"></span>
+
+            {unreadCount > 0 && (
+              <span
+                className="absolute -top-1 -right-2 min-w-[18px] h-[18px] px-1
+                bg-destructive text-white text-xs rounded-full
+                flex items-center justify-center"
+              >
+                {unreadCount}
+              </span>
+            )}
           </Button>
+
 
           {/* Sélecteur de thème */}
           <DropdownMenu>

@@ -42,6 +42,7 @@ interface NewUserPayload {
 export interface UpdateUserPayload {
   nom?: string;
   prenom?: string;
+  password?: string;
   username?: string;
   email?: string;
   posteId?: number;
@@ -60,10 +61,12 @@ export default function Users() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
- const [isAssignChefDialogOpen, setIsAssignChefDialogOpen] = useState(false);
+  const [isAssignChefDialogOpen, setIsAssignChefDialogOpen] = useState(false);
   const [userToAssignChef, setUserToAssignChef] = useState<User | null>(null);
   const [selectedChefId, setSelectedChefId] = useState<number | null>(null);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
   const [newUser, setNewUser] = useState<NewUserPayload>({
     nom: "",
     prenom: "",
@@ -152,36 +155,43 @@ const handleCreateUser = async (e: React.FormEvent) => {
 
 
 
-  // 🔹 Update User
-  const handleUpdateUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedUser) return;
+const handleUpdateUser = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!selectedUser) return;
 
-    try {
-      const payload: UpdateUserPayload = {
-        nom: selectedUser.nom,
-        prenom: selectedUser.prenom,
-        username: selectedUser.username,
-        email: selectedUser.email,
-        posteId: selectedUser.posteId,
-        agenceId: selectedUser.agenceId,
-        chefId: selectedUser.chefId || null,
-      };
-      await updateUser(selectedUser.id, payload);
+  try {
+    // Préparer le payload
+    const payload: UpdateUserPayload & { currentPassword?: string } = {
+      nom: selectedUser.nom,
+      prenom: selectedUser.prenom,
+      username: selectedUser.username,
+      email: selectedUser.email,
+      posteId: selectedUser.posteId,
+      agenceId: selectedUser.agenceId,
+      chefId: selectedUser.chefId || null,
+      roles: selectedUser.roles?.map(r => r.roleId),
+    };
 
-      // Roles
-      if (selectedUser.roles && selectedUser.roles.length > 0) {
-        for (const r of selectedUser.roles) await removeRoleFromUser(selectedUser.id, r.roleId);
-        await assignRoleToUser(selectedUser.id, selectedUser.roles[0].roleId);
-      }
+    // Ajouter le nouveau mot de passe si rempli
+    if (newPassword.trim() !== "") {
+      payload.password = newPassword;
+      payload.currentPassword = prompt("Entrez le mot de passe actuel pour confirmer") || "";
+    }
 
-      await assignUserToChef(selectedUser.id, selectedUser.chefId || null);
+    // Envoyer au backend
+    await updateUser(selectedUser.id, payload);
 
-      setIsEditDialogOpen(false);
-      setSelectedUser(null);
-      fetchUsers();
-    } catch (error) { console.error(error); }
-  };
+    // Reset
+    setNewPassword("");
+    setIsEditDialogOpen(false);
+    setSelectedUser(null);
+    fetchUsers();
+  } catch (error: any) {
+    alert("Erreur lors de la mise à jour de l'utilisateur : " + (error.message || error));
+    console.error(error);
+  }
+};
+
 
   const handleDeleteUser = async (id: number) => {
     if (!confirm("Voulez-vous vraiment supprimer cet utilisateur ?")) return;
@@ -436,6 +446,31 @@ const handleCreateUser = async (e: React.FormEvent) => {
                       />
                     </div>
                   ))}
+
+                   {/* Mot de passe actuel */}
+                  <div className="space-y-2">
+                    <Label htmlFor="current-password">Mot de passe actuel</Label>
+                    <Input
+                      id="current-password"
+                      type="password"
+                      value={currentPassword}
+                      onChange={e => setCurrentPassword(e.target.value)}
+                      placeholder="Entrez votre mot de passe actuel"
+                    />
+                  </div>
+
+                  {/* Nouveau mot de passe */}
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-password">Nouveau mot de passe</Label>
+                    <Input
+                      id="edit-password"
+                      type="password"
+                      value={newPassword}
+                      onChange={e => setNewPassword(e.target.value)}
+                      placeholder="Laissez vide pour ne pas changer"
+                    />
+                  </div>
+
 
                   {/* Poste */}
                   <div className="space-y-2">

@@ -1,6 +1,6 @@
 "use client";
 
-import AffectationsPage from "@/components/equipements/Affectations";
+import AffectationsPage from "@/components/equipements/Mouvements";
 
 export default function InventairePage() {
   return (

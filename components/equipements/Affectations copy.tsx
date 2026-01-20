@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import AffectationService, { Affectation } from "@/lib/services/AffectationService";
+import AffectationService, { Affectation } from "@/lib/services/MouvementService";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";

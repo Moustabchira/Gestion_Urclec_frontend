@@ -1,15 +1,20 @@
+// ---------- Agence ----------
 export interface Agence {
   id: number;
   nom_agence: string;
   code_agence: string;
   ville: string;
-  users?: User[];        // liste des utilisateurs rattachés à l'agence
+  users?: User[];
+  pointServices?: PointDeService[];
+  mouvementsSource?: MouvementEquipement[];
+  mouvementsDestination?: MouvementEquipement[];
   createdAt: Date;
   updatedAt: Date;
   archive: boolean;
   archivedAt?: Date | null;
 }
 
+// ---------- Poste ----------
 export interface Poste {
   id: number;
   nom: string;
@@ -20,25 +25,21 @@ export interface Poste {
   archivedAt?: Date | null;
 }
 
+// ---------- PointDeService ----------
 export interface PointDeService {
   id: number;
   nom: string;
-
-  // Relation vers Agence
   agenceId: number;
   agence?: Agence;
-
-  affectationsOrigine?: AffectationEquipement[];
-  affectationsDest?: AffectationEquipement[];
-  
-  // Métadonnées communes
+  mouvementsSource?: MouvementEquipement[];
+  mouvementsDestination?: MouvementEquipement[];
   createdAt: Date;
   updatedAt: Date;
   archive: boolean;
   archivedAt?: Date | null;
 }
 
-
+// ---------- User ----------
 export interface User {
   id: number;
   nom: string;
@@ -47,42 +48,48 @@ export interface User {
   email: string;
   password: string;
   code_identifiant: string;
-  avatar?: string | null;
+
   agenceId: number;
   agence?: Agence;
+
   posteId: number;
   poste?: Poste;
+
   chefId?: number | null;
   chef?: User | null;
-  subordonnes?: User[]; // utilisateurs dont cet utilisateur est le chef
+  subordonnes?: User[];
+
+  actionCredits?: ActionCredit[];
+  creditsBeneficiaire?: Credit[];
+  decisions?: Decision[];
+  roles?: UserRole[];
+  demandes?: Demande[];
+  demandesAValider?: Demande[];
+  evenementsCrees?: Evenement[];
+  evenementsPublies?: Evenement[];
+  equipementsPossedes?: Equipement[];
+  mouvementsInitie?: MouvementEquipement[];
+  mouvementsConfirmes?: MouvementEquipement[];
+  mouvementsResponsable?: MouvementEquipement[];
+
   createdAt: Date;
   updatedAt: Date;
-  actionCredits?: ActionCredit[];
-  decisions?: Decision[];
-  equipementsPossedes?: Equipement[];
-  affectations?: AffectationEquipement[];
-  evenements?: Evenement[];
-  roles?: UserRole[];
-  permissions?: string[];
-  demandes?: Demande[];
   archive: boolean;
   archivedAt?: Date | null;
 }
 
-
+// ---------- Rôles et Permissions ----------
 export interface Role {
   id: number;
   nom: string;
   slug: string;
+  rolePermissions?: RolePermission[];
+  userRoles?: UserRole[];
   createdAt: Date;
   updatedAt: Date;
-  permissions?: RolePermission[];
-  userRoles?: UserRole[];
   archive: boolean;
   archivedAt?: Date | null;
 }
-
-export type RoleName = "DRH" | "EMPLOYE" | "DG";
 
 export interface UserRole {
   userId: number;
@@ -90,17 +97,17 @@ export interface UserRole {
   assignedAt: Date;
   archive: boolean;
   archivedAt?: Date | null;
-  role?: Role;
   user?: User;
+  role?: Role;
 }
 
 export interface Permission {
   id: number;
   nom: string;
   slug: string;
+  rolePermissions?: RolePermission[];
   createdAt: Date;
   updatedAt: Date;
-  roles?: RolePermission[];
   archive: boolean;
   archivedAt?: Date | null;
 }
@@ -109,43 +116,32 @@ export interface RolePermission {
   id: number;
   roleId: number;
   permissionId: number;
-  createdAt: Date;
-  permission?: Permission;
   role?: Role;
-  archive: boolean;
-  archivedAt?: Date | null;
-}
-
-export interface Decision {
-  id: number;
-  status: string;
-  niveau: string;
+  permission?: Permission;
   createdAt: Date;
-  updatedAt: Date;
-  userId: number;
-  demandeId: number;
-  demande?: Demande;
-  user?: User;
   archive: boolean;
   archivedAt?: Date | null;
 }
 
+// ---------- Demandes ----------
 export interface Demande {
   id: number;
   type: string;
   dateDebut: Date;
   dateFin: Date;
   motif: string;
-  status: string; // "EN_ATTENTE" | "APPROUVEE" | "REFUSEE"
-  createdAt: Date;
-  updatedAt: Date;
-  conge: Conge | null;
-  absence: Absence | null;
-  demandePermission: DemandePermission | null;
-  decisions?: Decision[];
+  status: string;
+  pdfPath?: string | null;
   userId: number;
   user?: User;
-  pdfPath?: string | null;
+  conge?: Conge | null;
+  absence?: Absence | null;
+  demandePermission?: DemandePermission | null;
+  decisions?: Decision[];
+  currentApproverId?: number | null;
+  currentApprover?: User | null;
+  createdAt: Date;
+  updatedAt: Date;
   archive: boolean;
   archivedAt?: Date | null;
 }
@@ -153,10 +149,10 @@ export interface Demande {
 export interface Conge {
   id: number;
   nbJours: number;
-  createdAt: Date;
-  updatedAt: Date;
   demandeId: number;
   demande?: Demande;
+  createdAt: Date;
+  updatedAt: Date;
   archive: boolean;
   archivedAt?: Date | null;
 }
@@ -164,10 +160,10 @@ export interface Conge {
 export interface Absence {
   id: number;
   justification: string;
-  createdAt: Date;
-  updatedAt: Date;
   demandeId: number;
   demande?: Demande;
+  createdAt: Date;
+  updatedAt: Date;
   archive: boolean;
   archivedAt?: Date | null;
 }
@@ -175,70 +171,106 @@ export interface Absence {
 export interface DemandePermission {
   id: number;
   duree: string;
-  createdAt: Date;
-  updatedAt: Date;
   demandeId: number;
   demande?: Demande;
+  createdAt: Date;
+  updatedAt: Date;
   archive: boolean;
   archivedAt?: Date | null;
 }
 
+// ---------- Décision ----------
+export interface Decision {
+  id: number;
+  status: string;
+  niveau: string;
+  userId: number;
+  user?: User;
+  demandeId: number;
+  demande?: Demande;
+  createdAt: Date;
+  updatedAt: Date;
+  archive: boolean;
+  archivedAt?: Date | null;
+}
+
+// ---------- Equipement ----------
+export interface Equipement {
+  id: number;
+  nom: string;
+  modele?: string | null;
+  images?: string[]; // tableau de string, JSON parse
+  dateAcquisition: Date;
+  etat: "HORS_SERVICE" | "EN_PANNE" | "EN_TRANSIT" | "EN_REPARATION" | "FONCTIONNEL";
+  status: "DISPONIBLE" | "ASSIGNE";
+  responsableActuelId?: number | null;
+  responsableActuel?: User | null;
+  agenceActuelleId?: number | null;
+  agenceActuelle?: Agence | null;
+  pointServiceActuelId?: number | null;
+  pointServiceActuel?: PointDeService | null;
+  mouvements?: MouvementEquipement[];
+  createdAt: Date;
+  updatedAt: Date;
+  archive: boolean;
+  archivedAt?: Date | null;
+}
+
+// ---------- MouvementEquipement ----------
+export interface MouvementEquipement {
+  id: number;
+  type: "AFFECTATION" | "TRANSFERT" | "REPARATION" | "RETRAIT" | "RETROUVE" | "RETOUR_REPARATION";
+  statut: "EN_ATTENTE" | "CONFIRME" | "REJETE" | "EN_TRANSIT" | "EN_REPARATION" | "RETIRE" | "BON" | "ABIME" | "PERDU";
+  commentaire?: string | null;
+  etatAvant: string;
+  etatApres: string;
+  equipementId: number;
+  equipement?: Equipement;
+  initiateurId: number;
+  initiateur?: User;
+  agenceSourceId?: number | null;
+  agenceSource?: Agence;
+  agenceDestinationId?: number | null;
+  agenceDestination?: Agence;
+  pointServiceSourceId?: number | null;
+  pointServiceSource?: PointDeService;
+  pointServiceDestinationId?: number | null;
+  pointServiceDestination?: PointDeService;
+  responsableDestinationId?: number | null;
+  responsableDestination?: User;
+  confirmeParId?: number | null;
+  confirmePar?: User;
+  confirme?: boolean;
+  dateConfirmation?: Date | null;
+  createdAt: Date;
+}
+
+// ---------- Evenement ----------
 export interface Evenement {
   id: number;
   titre: string;
   description: string;
   dateDebut: Date;
   dateFin: Date;
-  images?: string[];       // on stockera comme JSON
+  images?: string[]; // JSON parse
+  statut: "EN_ATTENTE" | "VALIDE" | "REJETE" | "PUBLIE";
   userId: number;
   user?: User;
   validatedBy?: number | null;
   validateur?: User | null;
-  archive: boolean;
-  archivedAt?: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface Equipement {
-  id: number;
-  nom: string;
-  modele?: string | null;
-  images?: string[];       // on stockera comme JSON
-  categorie?: string | null;
-  dateAcquisition: Date;
-  status: string; // ACTIF, HORS_SERVICE
-  affectations?: AffectationEquipement[];
+  publishedBy?: number | null;
+  publieur?: User | null;
   createdAt: Date;
   updatedAt: Date;
   archive: boolean;
   archivedAt?: Date | null;
 }
 
-export interface AffectationEquipement {
-  id: number;
-  equipementId: number;
-  employeId: number;
-  pointServiceOrigineId?: number | null;
-  pointServiceDestId?: number | null;
-  quantite: number;
-  status?: "BON" | "ABIME" | "PERDU" | "RETIRE";
-  dateAffectation: Date;
-  dateFin?: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
-  equipement?: Equipement;
-  employe?: User;
-  pointServiceOrigine?: PointDeService;
-  pointServiceDest?: PointDeService;
-  archive: boolean;
-  archivedAt?: Date | null;
-}
-
+// ---------- ActionCredit ----------
 export interface ActionCredit {
   id: number;
   type: string;
-  commentaire: string;
+  commentaire?: string | null;
   date: Date;
   creditId: number;
   credit?: Credit;
@@ -258,6 +290,7 @@ export interface Credit {
   beneficiaireId: number;
   beneficiaire?: User;
   montant: number;
+  montantRembourse?: number;
   tauxInteret?: number | null;
   dateDebut: Date;
   dateFin: Date;
@@ -281,12 +314,10 @@ export interface CreditHistory {
   changedAt: Date;
 }
 
-
+// ---------- AuthPayload ----------
 export interface AuthPayload {
   userId: number;
   username: string;
   email: string;
   roles: string[];
 }
-
-
