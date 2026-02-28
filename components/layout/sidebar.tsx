@@ -130,7 +130,7 @@ export default function Sidebar() {
         </Link>
 
         <Link
-          href="/dashboard/actions/credits"
+          href="/dashboard/credits"
           className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg hover:bg-accent"
         >
           <Building className="w-5 h-5" />
@@ -138,7 +138,7 @@ export default function Sidebar() {
         </Link>
 
         <Link
-          href="/dashboard/actions"
+          href="/dashboard/credits/actions"
           className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg hover:bg-accent"
         >
           <Activity className="w-5 h-5" />

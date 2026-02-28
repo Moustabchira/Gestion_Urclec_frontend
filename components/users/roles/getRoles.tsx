@@ -57,15 +57,27 @@ export default function Roles() {
   });
   const [editingRole, setEditingRole] = useState<NewRolePayload & { id: number } | null>(null);
 
+  const [page, setPage] = useState(1);
+  const [lastPage, setLastPage] = useState(1);
+  const [limit] = useState(10);
+
+
   // Charger les rôles
   const fetchRolesData = async () => {
-    try {
-      const res = await getRoles();
-      setRoles(res.data);
-    } catch (error) {
-      console.error("Erreur lors de la récupération des rôles:", error);
-    }
-  };
+  try {
+    const res = await getRoles({
+      page,
+      limit,
+      nom: searchTerm || undefined,
+    });
+
+    setRoles(res.data);
+    setLastPage(res.meta?.lastPage || 1);
+  } catch (error) {
+    console.error("Erreur lors de la récupération des rôles:", error);
+  }
+};
+
 
   // Charger les permissions
   const fetchPermissions = async () => {
@@ -78,9 +90,13 @@ export default function Roles() {
   };
 
   useEffect(() => {
-    fetchRolesData();
-    fetchPermissions();
-  }, []);
+  fetchRolesData();
+}, [page, searchTerm]);
+
+useEffect(() => {
+  fetchPermissions();
+}, []);
+
 
   // Création d’un rôle
   const handleCreateRole = async (e: React.FormEvent) => {
@@ -296,6 +312,27 @@ export default function Roles() {
               ))}
             </TableBody>
           </Table>
+          <div className="flex items-center justify-between mt-4">
+             <Button
+                variant="outline"
+                disabled={page === 1}
+                onClick={() => setPage((p) => p - 1)}
+              >
+                Précédent
+              </Button>
+
+              <span className="text-sm text-muted-foreground">
+                Page {page} sur {lastPage}
+              </span>
+
+              <Button
+                  variant="outline"
+                  disabled={page === lastPage}
+                  onClick={() => setPage((p) => p + 1)}
+              >
+                Suivant
+              </Button>
+          </div>
         </CardContent>
       </Card>
 

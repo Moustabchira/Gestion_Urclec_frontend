@@ -55,11 +55,14 @@ export default class AuthService {
       throw new Error(err.error || "Erreur lors de l'inscription");
     }
 
-    const result = await res.json(); // { user, token }
+    const result = await res.json(); // 👈 { user, token }
+
     result.user.permissions = extractPermissions(result.user);
     this.saveAuth(result.user, result.token);
-    return result;
+
+    return result.user; // ✅ IMPORTANT
   }
+
 
   // Connexion
   async login(data: LoginPayload) {

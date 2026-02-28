@@ -20,61 +20,67 @@ import {
 import { Plus, Search, Edit, Trash2, MoreHorizontal } from "lucide-react";
 import { createPoste, updatePoste, deletePoste } from "@/lib/services/PosteService";
 import { usePostes } from "@/hooks/use-poste";
-import { Poste } from "@/types";
 
 export default function Postes() {
-  const { postes, isLoading, refresh } = usePostes();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedPoste, setSelectedPoste] = useState<any | null>(null);
+  const [newPoste, setNewPoste] = useState({ nom: "" });
   const [searchTerm, setSearchTerm] = useState("");
-  const [newPoste, setNewPoste] = useState({ nom: "", description: "" });
-  const [selectedPoste, setSelectedPoste] = useState<Poste | null>(null);
 
-  // 🔹 Création
+  const {
+    postes,
+    isLoading,
+    page,
+    lastPage,
+    nextPage,
+    prevPage,
+    setSearchTerm: setHookSearchTerm,
+    refresh,
+  } = usePostes();
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+    setHookSearchTerm(e.target.value); // met à jour le hook
+  };
+
+  // Création
   const handleCreatePoste = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await createPoste({ ...newPoste });
-      setNewPoste({ nom: "", description: "" });
+      await createPoste(newPoste);
+      setNewPoste({ nom: "" });
       setIsDialogOpen(false);
       refresh();
     } catch (error) {
-      console.error("Erreur lors de la création du poste:", error);
+      console.error(error);
     }
   };
 
-  // 🔹 Modification
+  // Modification
   const handleUpdatePoste = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPoste) return;
     try {
-      await updatePoste(selectedPoste.id, {
-        nom: selectedPoste.nom,
-      });
-      setIsEditDialogOpen(false);
+      await updatePoste(selectedPoste.id, { nom: selectedPoste.nom });
       setSelectedPoste(null);
+      setIsEditDialogOpen(false);
       refresh();
     } catch (error) {
-      console.error("Erreur lors de la modification du poste:", error);
+      console.error(error);
     }
   };
 
-  // 🔹 Suppression
+  // Suppression
   const handleDeletePoste = async (id: number) => {
     if (!confirm("Voulez-vous vraiment supprimer ce poste ?")) return;
     try {
       await deletePoste(id);
       refresh();
     } catch (error) {
-      console.error("Erreur lors de la suppression du poste:", error);
+      console.error(error);
     }
   };
-
-  // 🔹 Filtrage
-  const filteredPostes = postes.filter(
-    (p) =>
-      p.nom.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   return (
     <div className="space-y-6">
@@ -87,7 +93,7 @@ export default function Postes() {
           <Input
             placeholder="Rechercher un poste..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={handleSearchChange}
             className="pl-10"
           />
         </div>
@@ -127,57 +133,66 @@ export default function Postes() {
       <Card>
         <CardHeader>
           <CardTitle>Liste des postes</CardTitle>
-          <CardDescription>{filteredPostes.length} poste(s)</CardDescription>
+          <CardDescription>{postes.length} poste(s)</CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
             <p>Chargement...</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nom</TableHead>
-                  <TableHead>Créé le</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredPostes.map((poste) => (
-                  <TableRow key={poste.id}>
-                    <TableCell>{poste.nom}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {new Date(poste.createdAt).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger>
-                          <button className="p-1 rounded hover:bg-gray-100">
-                            <MoreHorizontal className="w-5 h-5" />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            className="flex items-center gap-2 cursor-pointer"
-                            onClick={() => {
-                              setSelectedPoste(poste);
-                              setIsEditDialogOpen(true);
-                            }}
-                          >
-                            <Edit className="w-4 h-4" /> Modifier
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-destructive flex items-center gap-2 cursor-pointer"
-                            onClick={() => handleDeletePoste(poste.id)}
-                          >
-                            <Trash2 className="w-4 h-4" /> Supprimer
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nom</TableHead>
+                    <TableHead>Créé le</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {postes.map((poste) => (
+                    <TableRow key={poste.id}>
+                      <TableCell>{poste.nom}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {poste.createdAt.toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger>
+                            <button className="p-1 rounded hover:bg-gray-100">
+                              <MoreHorizontal className="w-5 h-5" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              className="flex items-center gap-2 cursor-pointer"
+                              onClick={() => {
+                                setSelectedPoste(poste);
+                                setIsEditDialogOpen(true);
+                              }}
+                            >
+                              <Edit className="w-4 h-4" /> Modifier
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-destructive flex items-center gap-2 cursor-pointer"
+                              onClick={() => handleDeletePoste(poste.id)}
+                            >
+                              <Trash2 className="w-4 h-4" /> Supprimer
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              {/* Pagination */}
+              <div className="flex justify-between items-center mt-4">
+                <Button onClick={prevPage} disabled={page === 1}>Précédent</Button>
+                <span>Page {page} / {lastPage}</span>
+                <Button onClick={nextPage} disabled={page === lastPage}>Suivant</Button>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

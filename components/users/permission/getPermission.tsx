@@ -7,10 +7,20 @@ import { LockKeyhole, Trash2, MoreHorizontal, ArrowUpDown } from "lucide-react";
 import { getPermissions, deletePermission } from "@/lib/services/PermissionService";
 import { Permission } from "@/types/index";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { usePagination } from "@/hooks/use-pagination";
 
 export default function Permissions() {
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [sortAsc, setSortAsc] = useState(true);
+  const {
+  page,
+  limit,
+  lastPage,
+  setLastPage,
+  nextPage,
+  prevPage,
+} = usePagination({ initialLimit: 10 });
+
 
   const fetchPermissions = async () => {
     try {
@@ -22,8 +32,15 @@ export default function Permissions() {
   };
 
   useEffect(() => {
-    fetchPermissions();
-  }, []);
+  const fetchData = async () => {
+    const res = await getPermissions({ page, limit });
+    setPermissions(res.data);
+    setLastPage(res.meta?.lastPage || 1);
+  };
+
+  fetchData();
+}, [page]);
+
 
   // Méthode pour supprimer une permission
   const handleDeletePermission = async (id: number) => {
@@ -114,6 +131,29 @@ export default function Permissions() {
               ))}
             </TableBody>
           </Table>
+          <div className="flex items-center justify-between mt-4">
+
+            <button
+              disabled={page === 1}
+              onClick={prevPage}
+              className="px-3 py-1 border rounded disabled:opacity-50"
+            >
+              Précédent
+            </button>
+
+            <span className="text-sm text-muted-foreground">
+              Page {page} sur {lastPage}
+            </span>
+            
+            <button
+              disabled={page === lastPage}
+              onClick={nextPage}
+              className="px-3 py-1 border rounded disabled:opacity-50"
+            >
+              Suivant
+            </button>
+          </div>
+
         </CardContent>
       </Card>
     </div>

@@ -1,23 +1,28 @@
 import { Evenement } from "@/types/index";
 
-const API_URL = `${process.env.NEXT_PUBLIC_API_BASE_URL}`;
+const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export interface EvenementFilters {
   titre?: string;
   description?: string;
   userId?: number;
   archive?: boolean;
+  userRole?: string;
+  page?: number;
+  limit?: number;
 }
 
 // ------------------ Récupération des événements ------------------
-export async function getEvenements(filters?: EvenementFilters & { userRole?: string }) {
+export async function getEvenements(filters?: EvenementFilters) {
   const query = new URLSearchParams();
 
   if (filters?.titre) query.append("titre", filters.titre);
   if (filters?.description) query.append("description", filters.description);
   if (filters?.userId) query.append("userId", filters.userId.toString());
   if (filters?.archive !== undefined) query.append("archive", filters.archive.toString());
-  if (filters?.userRole) query.append("userRole", filters.userRole); // 🔹 Ajouté
+  if (filters?.userRole) query.append("userRole", filters.userRole);
+  if (filters?.page) query.append("page", filters.page.toString());
+  if (filters?.limit) query.append("limit", filters.limit.toString());
 
   const response = await fetch(`${API_URL}/evenements?${query.toString()}`, {
     headers: { Authorization: `Bearer ${localStorage.getItem("token") || ""}` },
@@ -25,7 +30,11 @@ export async function getEvenements(filters?: EvenementFilters & { userRole?: st
 
   if (!response.ok) throw new Error("Erreur lors de la récupération des événements");
 
-  return response.json() as Promise<Evenement[]>;
+  // 🔹 On récupère { data, meta } comme le backend
+  return response.json() as Promise<{
+    data: Evenement[];
+    meta: { total: number; page: number; limit: number; totalPages: number };
+  }>;
 }
 
 // ------------------ Récupération d'un événement par ID ------------------
@@ -47,7 +56,7 @@ export async function getEvenementById(id: string | number): Promise<Evenement |
 export async function createEvenement(data: FormData) {
   const response = await fetch(`${API_URL}/evenements`, {
     method: "POST",
-    body: data, // NE PAS mettre de headers
+    body: data,
   });
 
   if (!response.ok) {
@@ -55,9 +64,8 @@ export async function createEvenement(data: FormData) {
     throw new Error(`Erreur lors de la création de l'événement: ${errorText}`);
   }
 
-  return response.json();
+  return response.json() as Promise<Evenement>;
 }
-
 
 // ------------------ Mise à jour d'un événement ------------------
 export async function updateEvenement(id: string | number, data: FormData) {
@@ -93,8 +101,8 @@ export async function deleteEvenement(id: string | number, userRole: string) {
 export async function changeStatut(
   evenementId: string | number,
   userId: number,
-  statut: string,
-  userRole: string // ← ajouter
+  statut: "EN_ATTENTE" | "PUBLIE",
+  userRole: string
 ) {
   const response = await fetch(`${API_URL}/evenements/${evenementId}/statut`, {
     method: "PUT",
@@ -102,7 +110,7 @@ export async function changeStatut(
       "Content-Type": "application/json",
       Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
     },
-    body: JSON.stringify({ userId, statut, userRole }), // ← inclure userRole
+    body: JSON.stringify({ userId, statut, userRole }),
   });
 
   if (!response.ok) {
@@ -112,4 +120,3 @@ export async function changeStatut(
 
   return response.json() as Promise<Evenement>;
 }
-

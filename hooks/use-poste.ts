@@ -1,31 +1,52 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { getPostes } from "@/lib/services/PosteService";
 import { Poste } from "@/types";
+import { usePagination } from "@/hooks/use-pagination";
 
-export function usePostes() {
+export function usePostes(initialSearch = "") {
   const [postes, setPostes] = useState<Poste[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState(initialSearch);
 
-  const fetchPostes = useCallback(async () => {
+  const pagination = usePagination({ initialPage: 1, initialLimit: 10 });
+
+  const fetchPostes = async () => {
     setIsLoading(true);
-    setError(null);
     try {
-      const res = await getPostes();
-      setPostes(res.data);
-    } catch (err: any) {
-      console.error("Erreur lors du chargement des postes:", err);
-      setError("Impossible de charger les postes");
+      const res = await getPostes({
+        page: pagination.page,
+        limit: pagination.limit,
+        nom: searchTerm || undefined,
+      });
+
+      setPostes(
+        res.data.map((p) => ({
+          ...p,
+          createdAt: new Date(p.createdAt),
+          updatedAt: p.updatedAt ? new Date(p.updatedAt) : new Date(p.createdAt),
+        }))
+      );
+
+      pagination.setLastPage(res.meta.lastPage);
+    } catch (error) {
+      console.error("Erreur postes:", error);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  };
 
   useEffect(() => {
     fetchPostes();
-  }, [fetchPostes]);
+  }, [pagination.page, pagination.limit, searchTerm]);
 
-  return { postes, isLoading, error, refresh: fetchPostes };
+  return {
+    postes,
+    isLoading,
+    searchTerm,
+    setSearchTerm,
+    refresh: fetchPostes,
+    ...pagination,
+  };
 }

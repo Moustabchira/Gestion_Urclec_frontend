@@ -21,9 +21,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Plus, Search, Edit, Trash2, MoreHorizontal } from "lucide-react";
 import { PointDeService as PointService } from "@/types";
 import { useAgences } from "@/hooks/use-agence";
+import { usePagination } from "@/hooks/use-pagination";
 
 export default function PointsDeService() {
-  const { points, isLoading, refresh } = usePoints();
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDialogEdit, setIsDialogEdit] = useState(false);
@@ -34,6 +34,16 @@ export default function PointsDeService() {
   const [selectedPoint, setSelectedPoint] = useState<PointService | null>(null);
 
   const { agences, isLoading: loadingAgences } = useAgences(1, 9999);
+
+  const {
+  points,
+  isLoading,
+  refresh,
+  page,
+  lastPage,
+  nextPage,
+  prevPage,
+} = usePoints();
 
 
   // CREATE
@@ -85,10 +95,7 @@ export default function PointsDeService() {
     return agence ? agence.nom_agence : "—";
     };
 
-  // Filtering local
-  const filtered = points.filter((p) =>
-    p.nom.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+
 
   return (
     <div className="space-y-6">
@@ -167,7 +174,7 @@ export default function PointsDeService() {
       <Card>
         <CardHeader>
           <CardTitle>Liste des points</CardTitle>
-          <CardDescription>{filtered.length} point(s)</CardDescription>
+          <CardDescription>{points.length} point(s)</CardDescription>
         </CardHeader>
 
         <CardContent>
@@ -184,7 +191,7 @@ export default function PointsDeService() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((p) => (
+                {points.map((p) => (
                   <TableRow key={p.id}>
                     <TableCell>{p.nom}</TableCell>
                     <TableCell>
@@ -224,6 +231,19 @@ export default function PointsDeService() {
               </TableBody>
             </Table>
           )}
+          <div className="flex justify-between items-center mt-4">
+            <Button onClick={prevPage} disabled={page === 1}>
+              Précédent
+            </Button>
+
+            <span>
+              Page {page} / {lastPage}
+            </span>
+
+            <Button onClick={nextPage} disabled={page === lastPage}>
+              Suivant
+            </Button>
+          </div>
         </CardContent>
       </Card>
 

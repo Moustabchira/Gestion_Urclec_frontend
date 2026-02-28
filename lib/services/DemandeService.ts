@@ -19,8 +19,9 @@ export interface DemandeFilters {
   status?: string;
 }
 
-// ------------------ Récupération des demandes ------------------
-export async function getDemandes(params?: DemandeFilters) {
+export async function getDemandes(
+  params?: DemandeFilters
+): Promise<ApiResponse<Demande>> {
   const query = new URLSearchParams();
 
   if (params?.page) query.append("page", params.page.toString());
@@ -30,17 +31,18 @@ export async function getDemandes(params?: DemandeFilters) {
   if (params?.status) query.append("status", params.status);
 
   const response = await fetch(`${API_URL}/demandes?${query.toString()}`);
-  if (!response.ok) throw new Error("Erreur lors de la récupération des demandes");
+
+  if (!response.ok) {
+    throw new Error("Erreur lors de la récupération des demandes");
+  }
 
   const result = await response.json();
+
+  // ✅ On utilise directement le meta du backend
   return {
-    data: result.data as Demande[],
-    meta: {
-      total: result.total,
-      page: params?.page || 1,
-      lastPage: Math.ceil(result.total / (params?.limit || 10)),
-    },
-  } as ApiResponse<Demande>;
+    data: result.data,
+    meta: result.meta,
+  };
 }
 
 // ------------------ Récupération d'une demande par ID ------------------

@@ -52,6 +52,7 @@ import {
 import AuthService from "@/lib/services/AuthService";
 import { Evenement, User, RoleName } from "@/types/index";
 import * as EvenementService from "@/lib/services/EvenementService";
+import { usePagination } from "@/hooks/use-pagination";
 
 const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 // Assure-toi que l'interface User est correcte
@@ -90,6 +91,11 @@ export default function EvenementList() {
   const [periodeDebut, setPeriodeDebut] = useState<string>("");
   const [periodeFin, setPeriodeFin] = useState<string>("");
 
+  const { page, limit, lastPage, setLastPage, nextPage, prevPage, goToPage } = usePagination({
+  initialPage: 1,
+  initialLimit: 5, // nombre d'éléments par page
+});
+
   // Ouvrir le dialog de changement de statut
  const openStatutDialog = (ev: Evenement) => {
   setEvenementForStatut(ev);
@@ -116,8 +122,7 @@ export default function EvenementList() {
     fetchCurrentUser();
   }, []);
 
-  // Charger les événements
-const fetchEvenements = async () => {
+  const fetchEvenements = async () => {
   if (!currentUser) return;
 
   try {
@@ -127,14 +132,15 @@ const fetchEvenements = async () => {
       titre: searchTerm || undefined,
       description: undefined,
       archive: undefined,
-      userRole: currentUser.roles[0], // 🔹 Très important
+      userRole: currentUser.roles[0],
+      page,
+      limit,
     };
 
-    console.log("Filtres envoyés au backend :", filters);
-
     const res = await EvenementService.getEvenements(filters);
-    console.log("Événements reçus :", res);
-    setEvenements(res);
+
+    setEvenements(res.data);       // Les événements de la page
+    setLastPage(res.meta.totalPages); // Met à jour lastPage selon le backend
 
   } catch (error) {
     console.error("Erreur fetchEvenements:", error);
@@ -145,9 +151,9 @@ const fetchEvenements = async () => {
 
 
 
-  useEffect(() => {
-    fetchEvenements();
-  }, [currentUser, searchTerm, statusFilter]);
+ useEffect(() => {
+  fetchEvenements();
+}, [currentUser, searchTerm, statusFilter, page, limit]);
 
   // Créer / Modifier un événement
  const handleSubmit = async (e: React.FormEvent) => {
@@ -509,6 +515,11 @@ const fetchEvenements = async () => {
               )}
             </TableBody>
           </Table>
+          <div className="flex justify-between items-center mt-4">
+            <Button onClick={prevPage} disabled={page <= 1}>Précédent</Button>
+            <span>Page {page} sur {lastPage}</span>
+            <Button onClick={nextPage} disabled={page >= lastPage}>Suivant</Button>
+          </div>
         </CardContent>
       </Card>
     </div>

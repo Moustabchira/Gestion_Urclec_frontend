@@ -1,132 +1,191 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Trash } from "lucide-react";
-import { toast } from "sonner";
 import ActionCreditService from "@/lib/services/ActionCreditService";
+import { ActionCredit } from "@/types";
+import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
+import { usePagination } from "@/hooks/use-pagination";
 
-// 🔹 Types
-export interface User {
-  id: number;
-  prenom: string;
-  nom: string;
-}
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow
+} from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Search, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 
-export interface ActionCredit {
-  id: number;
-  type: string;
-  commentaire?: string;
-  agent?: User;
-  date: string;
-  archive?: boolean;
-}
-
-interface CreditActionsPageProps {
-  creditId: number;
-}
-
-export function CreditActionsList({ creditId }: CreditActionsPageProps) {
+export default function HistoriqueActionsCredits() {
+  const { user } = useAuth();
   const [actions, setActions] = useState<ActionCredit[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // 🔹 Pagination
+  const { page, limit, lastPage, setLastPage, nextPage, prevPage, goToPage } = usePagination({ initialPage: 1, initialLimit: 10 });
+
+  // 🔍 Filtres
+  const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [agentFilter, setAgentFilter] = useState("all");
 
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [dialogAction, setDialogAction] = useState<"archive" | "delete" | null>(null);
+  // 🪟 Dialog édition
+  const [editOpen, setEditOpen] = useState(false);
   const [selectedAction, setSelectedAction] = useState<ActionCredit | null>(null);
+  const [editType, setEditType] = useState("");
+  const [editCommentaire, setEditCommentaire] = useState("");
 
-  // 🔹 Fetch actions par crédit
+  // 🔹 Fetch actions paginated
   const fetchActions = async () => {
     setLoading(true);
     try {
-      const data = await ActionCreditService.getActionsByCredit(creditId);
-      setActions(data);
-    } finally { setLoading(false); }
+      const result = await ActionCreditService.getAllPaginated(page, limit);
+      setActions(result.data);
+      setLastPage(result.meta.totalPages);
+    } catch (err: any) {
+      toast.error(err.message || "Erreur récupération historique");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { fetchActions(); }, [creditId]);
-
-  // 🔹 Archiver / Supprimer
-  const handleConfirmArchive = async () => {
-    if (!selectedAction) return;
-    await ActionCreditService.archiveAction(selectedAction.id);
+  useEffect(() => {
     fetchActions();
-    setDialogOpen(false);
-    toast.success("Action archivée");
+  }, [page, limit]);
+
+  if (!user) return <div>Chargement...</div>;
+
+  // 🔹 Données filtres
+  const agents = Array.from(
+    new Set(
+      actions.filter(a => a.agent).map(a => `${a.agent!.prenom} ${a.agent!.nom}`)
+    )
+  );
+  const types = Array.from(new Set(actions.map(a => a.type)));
+
+  // 🔹 Filtrage côté front
+  const filtered = actions
+    .filter(a =>
+      searchTerm === "" ||
+      `${a.credit?.beneficiaire?.prenom ?? ""} ${a.credit?.beneficiaire?.nom ?? ""}`
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase())
+    )
+    .filter(a => typeFilter === "all" || a.type === typeFilter)
+    .filter(
+      a =>
+        agentFilter === "all" ||
+        (a.agent ? `${a.agent.prenom} ${a.agent.nom}` : "-") === agentFilter
+    );
+
+  // ✏️ Ouvrir dialog édition
+  const openEditDialog = (action: ActionCredit) => {
+    setSelectedAction(action);
+    setEditType(action.type);
+    setEditCommentaire(action.commentaire ?? "");
+    setEditOpen(true);
   };
 
+  // 💾 Sauvegarder modification
+  const handleUpdate = async () => {
+    if (!selectedAction) return;
+    try {
+      await ActionCreditService.updateAction(selectedAction.id, { type: editType, commentaire: editCommentaire });
+      toast.success("Action mise à jour");
+      setEditOpen(false);
+      setSelectedAction(null);
+      fetchActions();
+    } catch (err: any) {
+      toast.error(err.message || "Erreur mise à jour");
+    }
+  };
 
-  // 🔹 Filtrage
-  const filteredActions = actions.filter(a => {
-    const typeMatch = typeFilter === "all" || a.type === typeFilter;
-    const agentMatch = agentFilter === "all" || a.agent?.id.toString() === agentFilter;
-    return typeMatch && agentMatch;
-  });
+  // 🗑️ Supprimer (archiver)
+  const handleDelete = async (id: number) => {
+    if (!confirm("Voulez-vous vraiment supprimer cette action ?")) return;
+    try {
+      await ActionCreditService.archiveAction(id);
+      toast.success("Action supprimée");
+      fetchActions();
+    } catch (err: any) {
+      toast.error(err.message || "Erreur suppression");
+    }
+  };
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-semibold mt-4">Actions du crédit #{creditId}</h2>
+      <h1 className="text-3xl font-bold">Historique des actions crédits</h1>
 
-      {/* Filtres */}
-      <div className="flex gap-4 flex-wrap">
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger><SelectValue placeholder="Type" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tous</SelectItem>
-            {Array.from(new Set(actions.map(a => a.type))).map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={agentFilter} onValueChange={setAgentFilter}>
-          <SelectTrigger><SelectValue placeholder="Agent" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tous</SelectItem>
-            {Array.from(new Set(actions.map(a => a.agent?.id))).map(id => {
-              const agent = actions.find(a => a.agent?.id === id)?.agent;
-              return agent ? <SelectItem key={id} value={id.toString()}>{agent.prenom} {agent.nom}</SelectItem> : null;
-            })}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Tableau */}
+      {/* 🔍 Filtres */}
       <Card>
-        <CardHeader>
-          <CardTitle>Liste des actions</CardTitle>
-          <CardDescription>{actions.length} action(s)</CardDescription>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-wrap gap-4 pt-6">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input placeholder="Rechercher par bénéficiaire..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
+          </div>
+
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="w-48"><SelectValue placeholder="Type d’action" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous</SelectItem>
+              {types.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+            </SelectContent>
+          </Select>
+
+          <Select value={agentFilter} onValueChange={setAgentFilter}>
+            <SelectTrigger className="w-56"><SelectValue placeholder="Agent" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous</SelectItem>
+              {agents.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
+
+      {/* 📋 Tableau */}
+      <Card>
+        <CardContent className="overflow-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>ID</TableHead>
                 <TableHead>Type</TableHead>
-                <TableHead>Commentaire</TableHead>
+                <TableHead>Crédit</TableHead>
+                <TableHead>Bénéficiaire</TableHead>
                 <TableHead>Agent</TableHead>
                 <TableHead>Date</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead>Commentaire</TableHead>
+                <TableHead />
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredActions.map(a => (
+              {filtered.map(a => (
                 <TableRow key={a.id}>
-                  <TableCell>{a.id}</TableCell>
                   <TableCell>{a.type}</TableCell>
-                  <TableCell>{a.commentaire || "-"}</TableCell>
+                  <TableCell>#{a.creditId}</TableCell>
+                  <TableCell>{a.credit?.beneficiaire ? `${a.credit.beneficiaire.prenom} ${a.credit.beneficiaire.nom}` : "-"}</TableCell>
                   <TableCell>{a.agent ? `${a.agent.prenom} ${a.agent.nom}` : "-"}</TableCell>
-                  <TableCell>{new Date(a.date).toLocaleDateString()}</TableCell>
+                  <TableCell>{new Date(a.date).toLocaleString()}</TableCell>
+                  <TableCell>{a.commentaire || "-"}</TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="p-1"><MoreHorizontal className="w-4 h-4" /></Button>
+                        <button className="p-1 rounded hover:bg-gray-100">
+                          <MoreHorizontal className="w-4 h-4" />
+                        </button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                        {!a.archive && <DropdownMenuItem onClick={() => { setSelectedAction(a); setDialogAction("archive"); setDialogOpen(true); }}>Archiver</DropdownMenuItem>}
+                      <DropdownMenuContent align="end">
+                        {(user.roles?.includes("admin") || user.id === a.agent?.id) && (
+                          <DropdownMenuItem onClick={() => openEditDialog(a)}>
+                            <Pencil className="mr-2 h-4 w-4" />Modifier
+                          </DropdownMenuItem>
+                        )}
+                        {user.roles?.includes("admin") && (
+                          <DropdownMenuItem onClick={() => handleDelete(a.id)} className="text-red-600">
+                            <Trash2 className="mr-2 h-4 w-4" />Supprimer
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -134,17 +193,28 @@ export function CreditActionsList({ creditId }: CreditActionsPageProps) {
               ))}
             </TableBody>
           </Table>
+
+          {/* Pagination */}
+          <div className="flex justify-between mt-4">
+            <Button onClick={prevPage} disabled={page <= 1}>Précédent</Button>
+            <span>Page {page} sur {lastPage}</span>
+            <Button onClick={nextPage} disabled={page >= lastPage}>Suivant</Button>
+          </div>
         </CardContent>
       </Card>
 
-      {/* Dialog confirmation */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      {/* 🪟 Dialog modification */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{dialogAction === "archive" ? "Confirmer archivage" : "Confirmer suppression"}</DialogTitle>
-          </DialogHeader>
-          <DialogFooter className="mt-4 flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Annuler</Button>
+          <DialogHeader><DialogTitle>Modifier l’action</DialogTitle></DialogHeader>
+          <Select value={editType} onValueChange={setEditType}>
+            <SelectTrigger><SelectValue placeholder="Type d’action" /></SelectTrigger>
+            <SelectContent>{types.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+          </Select>
+          <Input placeholder="Commentaire" value={editCommentaire} onChange={e => setEditCommentaire(e.target.value)} />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>Annuler</Button>
+            <Button onClick={handleUpdate}>Enregistrer</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

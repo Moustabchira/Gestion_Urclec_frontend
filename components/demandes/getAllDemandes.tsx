@@ -17,6 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import AuthService from "@/lib/services/AuthService";
 import { getDemandes, createDemande, deleteDemande, generatePDF } from "@/lib/services/DemandeService";
 import { Demande, Decision, User } from "@/types/index";
+import { usePagination } from "@/hooks/use-pagination";
 
 interface DemandeFront {
   id: number;
@@ -52,6 +53,15 @@ export default function DemandeList() {
     duree: "",
     justification: "",
   });
+
+  const {
+  page,
+  limit,
+  lastPage,
+  setLastPage,
+  nextPage,
+  prevPage,
+} = usePagination({ initialPage: 1, initialLimit: 10 });
 
   // 🔹 Récupération utilisateur connecté
   useEffect(() => {
@@ -127,36 +137,48 @@ export default function DemandeList() {
 
 
 
-  // 🔹 Chargement des demandes
   useEffect(() => {
-    if (!currentUser) return;
-    const fetchDemandes = async () => {
-      try {
-        const res = await getDemandes();
-        const transformed: DemandeFront[] = res.data.map(d => ({
-          id: d.id,
-          type: d.type,
-          dateDebut: new Date(d.dateDebut).toISOString(),
-          dateFin: new Date(d.dateFin).toISOString(),
-          motif: d.motif,
-          status: d.status,
-          createdAt: new Date(d.createdAt).toISOString(),
-          employee: d.user ? `${d.user.prenom} ${d.user.nom}` : "Utilisateur inconnu",
-          nbJours: d.conge?.nbJours,
-          duree: d.demandePermission?.duree,
-          justification: d.absence?.justification,
-          decisions: d.decisions,
-          user: d.user,
-        }));
+  if (!currentUser) return;
 
-        setDemandes(filterByRoleAndWorkflow(transformed, currentUser));
-      } catch (error) {
-        console.error(error);
-      }
-    };
-    fetchDemandes();
-  }, [currentUser]);
+  const fetchDemandes = async () => {
+    try {
+      const res = await getDemandes({
+        page,
+        limit,
+        status: statusFilter !== "all" ? statusFilter : undefined,
+        type: typeFilter !== "all" ? typeFilter : undefined,
+      });
 
+      // ✅ très important
+      setLastPage(res.meta.lastPage);
+
+      const transformed: DemandeFront[] = res.data.map(d => ({
+        id: d.id,
+        type: d.type,
+        dateDebut: new Date(d.dateDebut).toISOString(),
+        dateFin: new Date(d.dateFin).toISOString(),
+        motif: d.motif,
+        status: d.status,
+        createdAt: new Date(d.createdAt).toISOString(),
+        employee: d.user
+          ? `${d.user.prenom} ${d.user.nom}`
+          : "Utilisateur inconnu",
+        nbJours: d.conge?.nbJours,
+        duree: d.demandePermission?.duree,
+        justification: d.absence?.justification,
+        decisions: d.decisions,
+        user: d.user,
+      }));
+
+      setDemandes(filterByRoleAndWorkflow(transformed, currentUser));
+
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  fetchDemandes();
+}, [currentUser, page, statusFilter, typeFilter]);
   // 🔹 Calcul nbJours automatique
   useEffect(() => {
     if (newDemande.type === "CONGE" && newDemande.dateDebut && newDemande.dateFin) {
@@ -225,15 +247,6 @@ export default function DemandeList() {
       demandes.filter(d => d.user?.agence).map(d => d.user!.agence!.nom_agence)
     )
   );
-
-  // 🔹 Filtrage
-  const filteredDemandes = demandes.filter(d => {
-    const matchesSearch = d.employee.toLowerCase().includes(searchTerm.toLowerCase()) || d.motif.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === "all" || d.status === statusFilter;
-    const matchesType = typeFilter === "all" || d.type === typeFilter;
-    const matchesAgence = agenceFilter === "all" || d.user?.agence?.nom_agence === agenceFilter;
-    return matchesSearch && matchesStatus && matchesType && matchesAgence;
-  });
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -364,7 +377,7 @@ export default function DemandeList() {
       <Card>
         <CardHeader>
           <CardTitle>Demandes</CardTitle>
-          <CardDescription>{filteredDemandes.length} demande(s)</CardDescription>
+          <CardDescription>{demandes.length} demande(s)</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -380,7 +393,7 @@ export default function DemandeList() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredDemandes.map(d => (
+              {demandes.map(d => (
                 <TableRow key={d.id}>
                   <TableCell>{d.employee}</TableCell>
                   <TableCell>{getTypeLabel(d.type)}</TableCell>
@@ -418,6 +431,27 @@ export default function DemandeList() {
               ))}
             </TableBody>
           </Table>
+          <div className="flex justify-between items-center mt-4">
+            <Button
+              variant="outline"
+              onClick={prevPage}
+              disabled={page === 1}
+            >
+              Précédent
+            </Button>
+
+            <span>
+              Page {page} sur {lastPage}
+            </span>
+
+            <Button
+              variant="outline"
+              onClick={nextPage}
+              disabled={page === lastPage}
+            >
+              Suivant
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

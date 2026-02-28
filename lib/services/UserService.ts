@@ -30,11 +30,12 @@ export interface ApiResponse<T> {
   meta: {
     total: number;
     page: number;
-    lastPage: number;
+    totalPages: number;
   };
 }
 
 // 🔹 Récupérer tous les utilisateurs
+// 🔹 Récupérer tous les utilisateurs avec recherche globale
 export async function getUsers(params?: {
   page?: number;
   limit?: number;
@@ -43,8 +44,10 @@ export async function getUsers(params?: {
   email?: string;
   username?: string;
   roleId?: number;
+  search?: string; // nouveau filtre global
 }) {
   const query = new URLSearchParams();
+
   if (params?.page) query.append("page", params.page.toString());
   if (params?.limit) query.append("limit", params.limit.toString());
   if (params?.nom) query.append("nom", params.nom);
@@ -52,11 +55,20 @@ export async function getUsers(params?: {
   if (params?.email) query.append("email", params.email);
   if (params?.username) query.append("username", params.username);
   if (params?.roleId) query.append("roleId", params.roleId.toString());
+  if (params?.search) query.append("search", params.search); // 🔹 ajout de la recherche globale
 
-  const res = await fetch(`${API_URL}/users?${query.toString()}`, { cache: "no-store" });
-  if (!res.ok) throw new Error("Erreur lors de la récupération des utilisateurs");
+  const res = await fetch(`${API_URL}/users?${query.toString()}`, {
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    throw new Error("Erreur lors de la récupération des utilisateurs");
+  }
+
   return res.json() as Promise<ApiResponse<User>>;
 }
+
+
 
 // 🔹 Récupérer un utilisateur par ID
 export async function getUserById(id: string | number): Promise<User | null> {
@@ -68,19 +80,28 @@ export async function getUserById(id: string | number): Promise<User | null> {
   return res.json();
 }
 
-// 🔹 Créer un utilisateur
-export async function createUser(data: NewUserPayload) {
+export async function createUser(data: NewUserPayload): Promise<User> {
   const res = await fetch(`${API_URL}/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
+
   if (!res.ok) {
     const errorText = await res.text();
     throw new Error(`Erreur lors de la création de l'utilisateur: ${errorText}`);
   }
-  return res.json() as Promise<User>;
+
+  const result = await res.json();
+
+  // 🔥 IMPORTANT
+  if (!result.user?.id) {
+    throw new Error("Utilisateur créé mais ID manquant");
+  }
+
+  return result.user; // ✅ SEULEMENT L'UTILISATEUR
 }
+
 
 // 🔹 Mettre à jour un utilisateur
 export async function updateUser(id: string | number, data: UpdateUserPayload) {
@@ -141,9 +162,21 @@ export async function removeRoleFromUser(userId: string | number, roleId: string
   return res.json() as Promise<{ message: string }>;
 }
 
-// 🔹 Assigner un chef à un utilisateur
-export async function assignUserToChef(userId: string | number, chefId: string | number | null) {
-  const res = await fetch(`${API_URL}/users/${userId}/chef/${chefId}`, { method: "POST" });
+export async function assignUserToChef(
+  userId: string | number,
+  chefId: string | number | null
+) {
+  if (chefId === null || chefId === undefined) {
+    throw new Error("Chef ID invalide");
+  }
+
+  const res = await fetch(
+    `${API_URL}/users/${userId}/chef/${chefId}`,
+    { method: "POST" }
+  );
+
   if (!res.ok) throw new Error(await res.text());
+
   return res.json() as Promise<User>;
 }
+

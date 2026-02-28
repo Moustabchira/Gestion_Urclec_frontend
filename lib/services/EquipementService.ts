@@ -5,21 +5,39 @@ const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000";
 
 export default class EquipementService {
   // 🔹 Récupérer tous les équipements non archivés
-  public async getAll(): Promise<Equipement[]> {
-    try {
-      const res = await fetch(`${API_URL}/equipements`);
-      if (!res.ok) throw new Error(`Erreur HTTP: ${res.status}`);
-      return (await res.json()) as Equipement[];
-    } catch (err: any) {
-      console.error("getAllEquipements error:", err);
-      throw new Error(err.message || "Erreur récupération équipements");
-    }
+  // 🔹 Récupérer équipements paginés
+public async getAll(
+  page: number = 1,
+  limit: number = 10
+): Promise<{
+  data: Equipement[];
+  total: number;
+  page: number;
+  totalPages: number;
+}> {
+  try {
+    const res = await fetch(
+      `${API_URL}/equipements?page=${page}&limit=${limit}`,
+      { cache: "no-store" }
+    );
+
+    if (!res.ok) throw new Error(`Erreur HTTP: ${res.status}`);
+
+    return await res.json();
+  } catch (err: any) {
+    console.error("getAllEquipements error:", err);
+    throw new Error(err.message || "Erreur récupération équipements");
   }
+}
+
 
   // 🔹 Récupérer un équipement par ID
   public async getById(id: number): Promise<Equipement | null> {
     try {
-      const res = await fetch(`${API_URL}/equipements/${id}`);
+       const res = await fetch(`${API_URL}/equipements/${id}`, {
+        cache: "no-store",
+      });
+      if (res.status === 404) return null;
       if (!res.ok) throw new Error(`Erreur HTTP: ${res.status}`);
       return (await res.json()) as Equipement;
     } catch (err: any) {
@@ -27,6 +45,7 @@ export default class EquipementService {
       throw new Error(err.message || "Erreur récupération équipement");
     }
   }
+
 
   // 🔹 Créer un équipement
   public async create(data: any): Promise<Equipement> {
@@ -244,7 +263,10 @@ public async confirmerReception(data: { mouvementId: number; confirmeParId: numb
   // 🔹 Récupérer les mouvements d’un équipement
   public async getMouvements(equipementId: number): Promise<any[]> {
     try {
-      const res = await fetch(`${API_URL}/equipements/${equipementId}/mouvements`);
+      const res = await fetch(
+          `${API_URL}/equipements/${equipementId}/mouvements`,
+          { cache: "no-store" }
+      );      
       if (!res.ok) throw new Error(`Erreur HTTP: ${res.status}`);
       return await res.json();
     } catch (err: any) {
@@ -253,3 +275,6 @@ public async confirmerReception(data: { mouvementId: number; confirmeParId: numb
     }
   }
 }
+
+export const equipementService = new EquipementService();
+

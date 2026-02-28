@@ -2,15 +2,23 @@
 import { PointDeService } from "@/types";
 const API_URL = `${process.env.NEXT_PUBLIC_API_BASE_URL}`;
 
-// 🔹 Récupérer tous les points de service
-export async function getPointsDeService(params?: { nom?: string; agenceId?: number }) {
+export async function getPointsDeService(params: {
+  page: number;
+  limit: number;
+}) {
   const query = new URLSearchParams();
-  if (params?.nom) query.append("nom", params.nom);
-  if (params?.agenceId) query.append("agenceId", params.agenceId.toString());
 
-  const response = await fetch(`${API_URL}/points-de-service?${query.toString()}`);
-  if (!response.ok) throw new Error("Erreur lors de la récupération des points de service");
-  return response.json() as Promise<PointDeService[]>;
+  query.append("page", params.page.toString());
+  query.append("limit", params.limit.toString());
+
+  const response = await fetch(
+    `${API_URL}/points-de-service?${query.toString()}`
+  );
+
+  if (!response.ok)
+    throw new Error("Erreur lors de la récupération des points");
+
+  return response.json();
 }
 
 // 🔹 Récupérer un point par ID

@@ -1,27 +1,37 @@
-"use client";
-import { ActionCredit } from "@/types/index";
+import { ActionCredit } from "@/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export interface ActionCreditPayload {
   creditId: number;
+  agentId: number;
   type: string;
   commentaire?: string;
-  latitude?: number;
-  longitude?: number;
-  archive?: boolean;
-  agentId: number;
 }
 
 export default class ActionCreditService {
-  static async getActionsByCredit(creditId: number): Promise<ActionCredit[]> {
-    const res = await fetch(`${API_URL}/credit/${creditId}/actions`);
+
+  // 🔹 Historique global des actions (paginated)
+  static async getAllPaginated(page = 1, limit = 10): Promise<{ data: ActionCredit[]; meta: any }> {
+    const res = await fetch(`${API_URL}/actions?page=${page}&limit=${limit}`);
+    if (!res.ok) throw new Error("Erreur récupération historique actions");
+    return res.json();
+  }
+
+  // 🔹 Actions d’un crédit (paginated)
+  static async getActionsByCreditPaginated(
+    creditId: number,
+    page = 1,
+    limit = 10
+  ): Promise<{ data: ActionCredit[]; meta: any }> {
+    const res = await fetch(`${API_URL}/credits/${creditId}/actions?page=${page}&limit=${limit}`);
     if (!res.ok) throw new Error("Erreur récupération actions");
     return res.json();
   }
 
+  // 🔹 CRÉATION ACTION
   static async createAction(data: ActionCreditPayload): Promise<ActionCredit> {
-    const res = await fetch(`${API_URL}/actions`, {
+    const res = await fetch(`${API_URL}/credits/${data.creditId}/actions`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -30,6 +40,7 @@ export default class ActionCreditService {
     return res.json();
   }
 
+  // 🔹 MISE À JOUR ACTION
   static async updateAction(id: number, data: Partial<ActionCreditPayload>): Promise<ActionCredit> {
     const res = await fetch(`${API_URL}/actions/${id}`, {
       method: "PUT",
@@ -40,8 +51,15 @@ export default class ActionCreditService {
     return res.json();
   }
 
+  // 🔹 ARCHIVER ACTION (soft-delete)
   static async archiveAction(id: number): Promise<void> {
-    const res = await fetch(`${API_URL}/actions/${id}/archive`, { method: "PUT" });
+    const res = await fetch(`${API_URL}/actions/${id}`, { method: "DELETE" });
     if (!res.ok) throw new Error("Erreur archivage action");
+  }
+
+  // 🔹 SUPPRESSION DÉFINITIVE (hard-delete)
+  static async deleteAction(id: number): Promise<void> {
+    const res = await fetch(`${API_URL}/actions/${id}/delete`, { method: "DELETE" });
+    if (!res.ok) throw new Error("Erreur suppression action");
   }
 }

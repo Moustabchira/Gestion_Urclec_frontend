@@ -20,6 +20,7 @@ import {
 import { Plus, Search, Edit, Trash2, MoreHorizontal } from "lucide-react";
 import { createAgence, deleteAgence, updateAgence } from "@/lib/services/AgenceService";
 import { useAgences } from "@/hooks/use-agence";
+import { usePagination } from "@/hooks/use-pagination";
 
 export default function Agences() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -28,7 +29,15 @@ export default function Agences() {
   const [newAgence, setNewAgence] = useState({ nom_agence: "", ville: "" });
   const [selectedAgence, setSelectedAgence] = useState<any | null>(null);
 
-  const { agences, isLoading, refresh } = useAgences();
+  const {
+  agences,
+  isLoading,
+  page,
+  lastPage,
+  nextPage,
+  prevPage,
+  refresh,
+} = useAgences();
 
   // 🔹 Création
   const handleCreateAgence = async (e: React.FormEvent) => {
@@ -71,13 +80,6 @@ export default function Agences() {
     }
   };
 
-  // 🔹 Filtrage
-  const filteredAgences = agences.filter(
-    (a) =>
-      a.nom_agence.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      a.code_agence.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      a.ville.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   return (
     <div className="space-y-6">
@@ -139,7 +141,7 @@ export default function Agences() {
       <Card>
         <CardHeader>
           <CardTitle>Liste des agences</CardTitle>
-          <CardDescription>{filteredAgences.length} agence(s)</CardDescription>
+          <CardDescription>{agences.length} agence(s)</CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -156,12 +158,12 @@ export default function Agences() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredAgences.map((agence) => (
+                {agences.map((agence) => (
                   <TableRow key={agence.id}>
                     <TableCell>{agence.nom_agence}</TableCell>
                     <TableCell>{agence.code_agence}</TableCell>
                     <TableCell>{agence.ville}</TableCell>
-                    <TableCell className="text-muted-foreground">{agence.createdAt}</TableCell>
+                    <TableCell className="text-muted-foreground">{new Date(agence.createdAt).toLocaleDateString()}</TableCell>
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger>
@@ -193,6 +195,19 @@ export default function Agences() {
               </TableBody>
             </Table>
           )}
+          <div className="flex justify-between items-center mt-4">
+            <Button onClick={prevPage} disabled={page === 1}>
+              Précédent
+            </Button>
+
+            <span>
+              Page {page} / {lastPage}
+            </span>
+
+            <Button onClick={nextPage} disabled={page === lastPage}>
+              Suivant
+            </Button>
+          </div>
         </CardContent>
       </Card>
 

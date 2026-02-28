@@ -18,6 +18,7 @@ import { Plus, Edit, Trash, MoreHorizontal, Repeat, Settings } from "lucide-reac
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
+import { usePagination } from "@/hooks/use-pagination";
 
 const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
@@ -90,21 +91,31 @@ export default function EquipementsPage() {
   const [etatFilter, setEtatFilter] = useState<string>("all");
 
   
+  const {
+  page,
+  limit,
+  lastPage,
+  setLastPage,
+  nextPage,
+  prevPage
+} = usePagination({ initialPage: 1, initialLimit: 10 });
 
   const { user } = useAuth();
 
   // 🔹 Fetch Equipements
   const fetchEquipements = async () => {
-    setLoading(true);
-    try {
-      const data = await equipementService.getAll();
-      setEquipements(data);
-    } catch (err: any) {
-      toast.error(err.message || "Erreur chargement équipements");
-    } finally {
-      setLoading(false);
-    }
-  };
+  setLoading(true);
+  try {
+    const result = await equipementService.getAll(page, limit);
+
+    setEquipements(result.data);
+    setLastPage(result.totalPages);
+  } catch (err: any) {
+    toast.error(err.message || "Erreur chargement équipements");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const fetchPointServices = async () => {
     try {
@@ -128,10 +139,10 @@ export default function EquipementsPage() {
   };
 
   useEffect(() => {
-    fetchEquipements();
-    fetchEmployes();
-    fetchPointServices();
-  }, []);
+  fetchEquipements();
+  fetchPointServices();
+  fetchEmployes();
+}, [page]);
 
 
   useEffect(() => {
@@ -554,6 +565,11 @@ const handleEnvoyerReparation = async (e: React.FormEvent) => {
                           <Edit className="w-4 h-4 mr-2" /> {/* icône à gauche */}
                           Modifier état
                         </DropdownMenuItem>
+                         <DropdownMenuItem asChild>
+                          <a href={`/dashboard/equipements/${eq.id}`} className="flex items-center">
+                            <span className="mr-2">🔍</span> Voir détail
+                          </a>
+                        </DropdownMenuItem>
                         <DropdownMenuItem
                           disabled={eq.etat !== "EN_PANNE"}
                           onClick={() => { setSelectedEquipement(eq.id); setIsReparationDialogOpen(true); }}
@@ -567,6 +583,27 @@ const handleEnvoyerReparation = async (e: React.FormEvent) => {
               ))}
             </TableBody>
           </Table>
+          <div className="flex justify-between items-center mt-4">
+            <Button
+              variant="outline"
+              onClick={prevPage}
+              disabled={page === 1}
+            >
+              Précédent
+            </Button>
+
+            <span className="text-sm">
+              Page {page} sur {lastPage}
+            </span>
+
+            <Button
+              variant="outline"
+              onClick={nextPage}
+              disabled={page === lastPage}
+            >
+              Suivant
+            </Button>
+          </div>
         </CardContent>
       </Card>
 

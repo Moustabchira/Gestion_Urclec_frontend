@@ -97,16 +97,25 @@ export default class MouvementService {
     }
   }
 
-  // 🔹 Récupérer tous les mouvements (optionnel filtre)
-  public async getAll(filter?: any): Promise<MouvementEquipement[]> {
-    try {
-      const query = filter ? `?${new URLSearchParams(filter).toString()}` : "";
-      const res = await fetch(`${API_URL}/mouvements${query}`);
-      if (!res.ok) throw new Error(`Erreur HTTP: ${res.status}`);
-      return await res.json();
-    } catch (err: any) {
-      console.error("getAllMouvements error:", err);
-      throw new Error(err.message || "Erreur récupération mouvements");
-    }
+  public async getAll(params?: { page?: number; limit?: number; search?: string }) {
+  const queryParams: Record<string, string> = {};
+
+  if (params?.page) queryParams.page = String(params.page);
+  if (params?.limit) queryParams.limit = String(params.limit);
+  if (params?.search) queryParams.search = params.search; // uniquement si search est défini et non vide
+
+  const query = Object.keys(queryParams).length
+    ? `?${new URLSearchParams(queryParams).toString()}`
+    : "";
+
+  const res = await fetch(`${API_URL}/mouvements${query}`);
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body?.error || `Erreur HTTP: ${res.status}`);
   }
+
+  return await res.json();
+}
+
 }

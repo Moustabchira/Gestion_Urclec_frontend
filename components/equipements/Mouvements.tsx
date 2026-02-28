@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { MoreHorizontal, Search } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useAuth } from "@/context/AuthContext";
+import { usePagination } from "@/hooks/use-pagination";
 
 export default function HistoriqueMouvements() {
   const service = new MouvementService();
@@ -31,6 +32,19 @@ export default function HistoriqueMouvements() {
   const [dialogRetourOpen, setDialogRetourOpen] = useState(false);
   const [selectedMouvement, setSelectedMouvement] = useState<MouvementEquipement | null>(null);
   const [etatRetour, setEtatRetour] = useState<"FONCTIONNEL" | "EN_PANNE">("FONCTIONNEL");
+
+  const [total, setTotal] = useState(0);
+
+  const {
+  page,
+  limit,
+  lastPage,
+  setLastPage,
+  nextPage,
+  prevPage,
+  resetPage,
+} = usePagination({ initialPage: 1, initialLimit: 10 });
+
 
   // Couleurs pour état
   const statusColors: Record<string, string> = {
@@ -57,22 +71,38 @@ export default function HistoriqueMouvements() {
     </span>
   );
 
-  // 🔹 Fetch mouvements
   const fetchMouvements = async () => {
-    setLoading(true);
-    try {
-      const data = await service.getAll();
-      setMouvements(data);
-    } catch (err: any) {
-      toast.error(err.message || "Erreur récupération mouvements");
-    } finally {
-      setLoading(false);
-    }
-  };
+  setLoading(true);
+  try {
+    const result = await service.getAll({
+      page,
+      limit,
+      search: searchTerm || undefined,
+    });
 
-  useEffect(() => {
-    fetchMouvements();
-  }, []);
+    setMouvements(result.data);
+
+    // ✅ AJOUTE CETTE LIGNE
+    setTotal(result.meta.total);
+
+    setLastPage(result.meta.totalPages);
+
+  } catch (err: any) {
+    toast.error(err.message || "Erreur récupération mouvements");
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+ useEffect(() => {
+  fetchMouvements();
+}, [page, searchTerm, limit]);
+
+useEffect(() => {
+  resetPage();
+}, [searchTerm]);
+
 
   if (!user || !user.id) return <div>Chargement...</div>;
 
@@ -137,12 +167,7 @@ export default function HistoriqueMouvements() {
     )
   );
 
-  const filtered = visibleMouvements
-    .filter((m) => searchTerm === "" || m.equipement?.nom.toLowerCase().includes(searchTerm.toLowerCase()))
-    .filter((m) => employeFilter === "all" || (m.initiateur ? `${m.initiateur.prenom} ${m.initiateur.nom}` : "-") === employeFilter)
-    .filter((m) => pointServiceFilter === "all" || m.pointServiceSource?.nom === pointServiceFilter || m.pointServiceDestination?.nom === pointServiceFilter);
-
-  const total = filtered.length;
+ 
 
   return (
     <div className="space-y-6">
@@ -179,7 +204,9 @@ export default function HistoriqueMouvements() {
       <Card>
         <CardHeader>
           <CardTitle>Mouvements</CardTitle>
-          <CardDescription>{filtered.length} mouvement(s)</CardDescription>
+          <CardDescription>
+            {total} mouvement(s)
+          </CardDescription>
         </CardHeader>
         <CardContent className="overflow-auto">
           <Table>
@@ -195,7 +222,7 @@ export default function HistoriqueMouvements() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map(m => (
+              {visibleMouvements.map(m => (
                 <TableRow key={m.id} className={m.confirme ? "bg-gray-50" : ""}>
                   <TableCell>{m.type}</TableCell>
                   <TableCell>{m.initiateur ? `${m.initiateur.prenom} ${m.initiateur.nom}` : "-"}</TableCell>
@@ -256,6 +283,20 @@ export default function HistoriqueMouvements() {
               ))}
             </TableBody>
           </Table>
+          <div className="flex justify-between items-center mt-4">
+            <Button onClick={prevPage} disabled={page === 1}>
+              Précédent
+            </Button>
+
+            <span>
+              Page {page} sur {lastPage}
+            </span>
+
+            <Button onClick={nextPage} disabled={page === lastPage}>
+              Suivant
+            </Button>
+          </div>
+
         </CardContent>
       </Card>
 
